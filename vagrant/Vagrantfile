@@ -1,0 +1,19 @@
+# Début de la configuration Vagrant, version 2 (la plus courante aujourd'hui)
+Vagrant.configure("2") do |config|
+
+  # Nom de la machine virtuelle
+  config.vm.define "ansible_vm"
+
+  # Choix de l'image (box) à utiliser : ici Ubuntu Server 22.04 minimal
+  config.vm.box = "generic/ubuntu2204"
+
+  # Configuration spécifique pour le provider libvirt (KVM)
+  config.vm.provider :libvirt do |libvirt|
+    # Mémoire RAM allouée à la VM (en mégaoctets)
+    libvirt.memory = 1024
+
+    # Nombre de CPU virtuels alloués à la VM
+    libvirt.cpus = 1
+  end
+  config.vm.network "private_network", type: "dhcp"
+end

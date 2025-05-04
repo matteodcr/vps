@@ -1,0 +1,9 @@
+---
+- name: Update APT package index
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Update the APT package index
+      ansible.builtin.apt:
+        update_cache: true
