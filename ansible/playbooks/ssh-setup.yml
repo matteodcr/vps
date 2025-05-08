@@ -1,0 +1,165 @@
+---
+- name: Update APT package index
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Update the APT package index
+      ansible.builtin.apt:
+        update_cache: true
+
+- name: Configuration SSH
+  hosts: all
+  become: yes
+  vars_files:
+    - vault-vars.yml
+
+  tasks:
+    - name: Change port SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Port'
+        line: "Port {{ ssh_port }}"
+      notify: Restart SSH
+
+    - name: Disable root login with SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+      notify: Restart SSH 
+
+  handlers:
+    - name: Restart SSH
+      service:
+        name: ssh
+        state: restarted
+
+
+- name: Install UFW
+  hosts: all
+  become: yes
+
+  tasks:
+    - name:
+      apt:
+        name: ufw
+        state: present
+
+- name: Configure firewall UFW
+  hosts: all
+  become: yes
+  vars_files:
+    - vault-vars.yml
+
+  tasks:
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        port: "{{ ssh_port }}"
+        proto: tcp
+
+    - name: Allow HTTP
+      ufw:
+        rule: allow
+        port: 80
+        proto: tcp
+
+    - name: Allow HTTPS
+      ufw:
+        rule: allow
+        port: 443
+        proto: tcp
+
+    - name: Default deny policy
+      ufw:
+        state: enabled
+        policy: deny
+
+- name: Install Fail2Ban
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Installer Fail2Ban
+      apt:
+        name: fail2ban
+        state: present
+        update_cache: yes
+
+- name: Configure Fail2Ban for SSH
+  hosts: all
+  become: yes
+  vars_files:
+    - vault-vars.yml
+
+  tasks:
+    - name: Configure jail.local
+      copy:
+        dest: /etc/fail2ban/jail.local
+        content: |
+          [DEFAULT]
+          bantime = 3600
+          findtime = 300
+          maxretry = 10
+          backend = systemd
+          destemail = {{ fail2ban_mail }}
+          action = %(action_mwl)s
+
+          [sshd]
+          enabled = true
+          port = {{ ssh_port }}
+          logpath = %(sshd_log)s
+          backend = systemd
+      notify: Restart Fail2Ban
+
+  handlers:
+    - name: Restart Fail2Ban
+      service:
+        name: fail2ban
+        state: restarted
+
+
+- name: Create SSH users
+  hosts: all
+  become: yes
+  vars_files:
+    - vault-vars.yml
+  
+  tasks:
+    - name: Create user
+      user:
+        name: "{{ item.username }}"
+        state: present
+        shell: /bin/bash
+        create_home: yes
+      with_items: "{{ users }}"
+    
+    - name: Create .ssh file
+      file:
+        path: "/home/{{ item.username }}/.ssh"
+        state: directory
+        owner: "{{ item.username }}"
+        group: "{{ item.username }}"
+        mode: '0700'
+      with_items: "{{ users }}"
+
+    - name: Add SSH key
+      authorized_key:
+        user: "{{ item.username }}"
+        state: present
+        key: "{{ item.ssh_key }}"
+      with_items: "{{ users }}"
+
+    - name: Set admin (optionnal)
+      user:
+        name: "{{ item.username }}"
+        groups: "{{ admin_group }}"
+        append: yes
+      with_items: "{{ users }}"
+
+    - name: No password access (optionnal)
+      user:
+        name: "{{ item.username }}"
+        password: 'fromage'
+      with_items: "{{ users }}"
