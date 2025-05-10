@@ -41,7 +41,7 @@
   become: yes
 
   tasks:
-    - name:
+    - name: Install UFW package
       apt:
         name: ufw
         state: present
@@ -81,7 +81,7 @@
   become: yes
 
   tasks:
-    - name: Installer Fail2Ban
+    - name: Install Fail2Ban
       apt:
         name: fail2ban
         state: present
