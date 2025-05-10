@@ -151,14 +151,14 @@
         key: "{{ item.ssh_key }}"
       with_items: "{{ users }}"
 
-    - name: Set admin (optionnal)
+    - name: Set admin (optional)
       user:
         name: "{{ item.username }}"
         groups: "{{ admin_group }}"
         append: yes
       with_items: "{{ users }}"
 
-    - name: No password access (optionnal)
+    - name: No password access (optional)
       user:
         name: "{{ item.username }}"
         password: 'fromage'
